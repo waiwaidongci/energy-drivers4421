@@ -34,7 +34,8 @@ JWT有效8小时，带盐PBKDF2-SHA256密码；独立审计/错误中间件，�
 5. 09:15 用胜出配置重拟合全部810个训练楼宇日，再读取270个封存楼宇日最终成绩。
 6. 09:20 核对三栋封存楼宇散点、原单位/标准化系数、每项特征置换ΔMAE及20次分布。
 7. 09:30 选“运行时长”等线索，提出运行排程和计量边界复核假设，写明两周独立观察计划。
-8. 10:00 季砾用admin审阅，林岑用viewer下载带完整输入与训练选择双指纹的研究CSV。
+8. 10:00 季砾用admin审阅批准v1，林岑用viewer下载带完整输入与训练选择双指纹的研究CSV。
+9. 现场复核回来后，周山基于v1改稿补充观察结论提交v2；季砾审阅期间若周山又提交v3，季砾对v2的批准会被409拒绝，刷新后重新审阅，避免批准别人的新稿。v1批准版CSV始终不变，各版内容、依据解释与审阅人都在页面留痕。
 
 初始seed只建立原始数据和三账号，第一份模型与解释来自真实提交。完成一次研究后，后续同配置复算会得到相同结果。
 
@@ -66,11 +67,19 @@ ElasticNet在标准化X上最小化`||y−Xw||²/(2n) + α*l1_ratio*||w||₁ + �
 
 保存三类核验材料：train/test楼宇与行ID、每折训练/验证楼宇与行ID、每折及最终scaler均值/尺度。训练选择SHA256只包含训练观测、拆组与配置；完整输入SHA256另包含所有源数据和封存目标。固定cyclic求解、seed97与稳定排序便于复算。数值测量与DriverFinding标量使用MySQL DOUBLE，重复分布为JSON双精度，保留一致的持久化精度。
 
+## 假设版本、审阅与批准快照
+
+假设从v1起逐版演进：分析员基于最新版改稿（`POST /hypotheses/{id}/revisions`，须声明`base_version`），负责人逐版审阅批准（`PATCH /hypotheses/{id}/approve`，须声明`version`）。页面按版展示方案内容、依据的驱动解释、修订人与审阅人。
+
+批准时把当时的方案、解释数值与完整输入/训练选择双指纹冻结进该版snapshot；分版下载（`GET /hypotheses/{id}/revisions/{version}/export`）只读快照。之后改稿、同配置复算产生新研究，甚至源解释行变化，都不改变已批准版本的CSV。旧入口`GET /hypotheses/{id}/export`继续可用，返回最新批准版。
+
+改稿或批准携带的版号与当前版号不符即409拒绝，避免并发下批准别人的新稿；版号计数与批准状态用原子条件更新判定，并发下只有一个赢家。联络员只读已批准版本；分析员与负责人可改稿，仅负责人可批准。存量假设启动时自动回填v1版本（已批准的按当前解释与指纹补快照），DDL见`backend/migrations/v2_hypothesis_revisions.sql`。
+
 ## 六页、五实体和共享代码
 
 六页：研究首页、楼宇与样本、分组模型比较、驱动解释、改造假设、研究留痕。
 
-BuildingDataset、BuildingDay、ModelRun、DriverFinding、RetrofitHypothesis五实体各贯穿model/schema/service/controller/route/前端API/Pinia store/页面。DriverFinding由真实计算持久化，通过独立API读取；假设引用具体finding，再由负责人批准交付。
+BuildingDataset、BuildingDay、ModelRun、DriverFinding、RetrofitHypothesis五实体各贯穿model/schema/service/controller/route/前端API/Pinia store/页面，HypothesisRevision作为假设的逐版子表记录各版内容、依据finding、修订/审阅人与批准快照。DriverFinding由真实计算持久化，通过独立API读取；假设引用具体finding，再由负责人逐版批准交付。
 
 共用DatasetSelect、ModelSummary、ImportancePlot、PredictionPlot、RunTable；通用PageHeading/StatusBadge/ErrorNotice/EmptyState。useTask与usePolling分别管理恢复状态和运行刷新。角色/状态枚举后端在`backend/src/constants/enums.py`（Role、RunStatus、HypothesisStatus、FEATURES），对应授权utils/auth、run_service/worker、hypothesis_service及输入schema；前端在`frontend/src/constants/enums.ts`（roles/statuses/features/shortNames），供App、StatusBadge、模型和解释页面使用。
 

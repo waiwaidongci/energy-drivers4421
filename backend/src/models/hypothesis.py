@@ -1,4 +1,4 @@
-from sqlalchemy import String,ForeignKey,DateTime
+from sqlalchemy import String,ForeignKey,DateTime,JSON,UniqueConstraint
 from sqlalchemy.orm import Mapped,mapped_column
 from datetime import datetime
 from src.config.database import Base
@@ -11,4 +11,20 @@ class RetrofitHypothesis(Base):
     verification:Mapped[str]=mapped_column(String(1200))
     status:Mapped[str]=mapped_column(String(20),default='draft')
     approved_by:Mapped[str]=mapped_column(String(160),default='')
+    current_version:Mapped[int]=mapped_column(default=1,server_default='1')
     created_at:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow)
+class HypothesisRevision(Base):
+    __tablename__='hypothesis_revisions'
+    __table_args__=(UniqueConstraint('hypothesis_id','version'),)
+    id:Mapped[int]=mapped_column(primary_key=True)
+    hypothesis_id:Mapped[int]=mapped_column(ForeignKey('retrofit_hypotheses.id'))
+    version:Mapped[int]=mapped_column()
+    finding_id:Mapped[int]=mapped_column(ForeignKey('driver_findings.id'))
+    action:Mapped[str]=mapped_column(String(1200))
+    verification:Mapped[str]=mapped_column(String(1200))
+    status:Mapped[str]=mapped_column(String(20),default='draft')
+    created_by:Mapped[str]=mapped_column(String(160),default='')
+    created_at:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow)
+    reviewed_by:Mapped[str]=mapped_column(String(160),default='')
+    reviewed_at:Mapped[datetime|None]=mapped_column(DateTime,nullable=True)
+    snapshot:Mapped[dict|None]=mapped_column(JSON,nullable=True)
